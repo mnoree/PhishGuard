@@ -1,1 +1,25 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Login — PhishGuard</title><link rel="stylesheet" href="../css/styles.css"></head><body class="auth-page"><main class="auth-card"><div class="brand">PHISH<span>GUARD</span></div><div class="auth-head"><h1>Welcome back</h1><p>Sign in to continue to your security dashboard.</p></div><form id="loginForm"><div class="form-group"><label class="form-label" for="email">Email</label><input class="form-control" id="email" type="email" required autocomplete="email"></div><div class="form-group"><label class="form-label" for="password">Password</label><input class="form-control" id="password" type="password" required autocomplete="current-password"></div><p id="message" class="error" hidden></p><button class="btn btn-primary" style="width:100%" type="submit">Sign in</button></form><div class="auth-footer"><a href="reset-password.html">Forgot your password?</a><br><br>Don't have an account? <a href="register.html">Create one</a></div><div class="auth-footer" style="margin-top:28px;font-size:12px">Demo: admin@phishguard.demo / Admin123!<br>User: sara@phishguard.demo / User123!</div></main><script src="../js/data-store.js"></script><script src="../data/demo-data.js"></script><script src="../js/auth.js"></script><script src="../js/app.js"></script><script>document.getElementById('loginForm').addEventListener('submit',function(e){e.preventDefault();const m=document.getElementById('message');const r=PGAuth.login(email.value,password.value);if(!r.ok){m.textContent=r.message;m.hidden=false;return}PGAuth.redirectByRole(r.user)});</script></body></html>
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Demo Access — PhishGuard</title><link rel="stylesheet" href="../css/styles.css">
+<style>
+.demo-note{padding:13px 15px;border-radius:10px;background:#f5f7f9;margin:18px 0;font-size:13px}.demo-actions{display:grid;gap:10px}.demo-actions .btn{text-align:center}.safe-label{font-size:11px;text-transform:uppercase;letter-spacing:.08em;font-weight:700}
+</style></head>
+<body class="auth-page"><main class="auth-card"><div class="brand">PHISH<span>GUARD</span></div>
+<div class="auth-head"><h1>PhishGuard Demo</h1><p>Choose a demo role to enter the controlled cybersecurity awareness simulation.</p></div>
+<div class="demo-note"><strong>Academic demonstration only.</strong><br>No real email, SMS, phone calls, or real account credentials are collected or transmitted.</div>
+<div class="demo-actions"><button class="btn btn-primary" data-demo="admin">Enter as Admin</button><button class="btn btn-secondary" data-demo="user">Enter as User</button></div>
+<p id="message" class="error" hidden></p>
+<div class="auth-footer" style="margin-top:24px"><span class="safe-label">Demo access</span><br>Admin: admin@phishguard.demo<br>User: sara@phishguard.demo</div>
+<div class="auth-footer" style="margin-top:18px"><a href="register.html">Create demo trainee</a> · <a href="reset-password.html">Demo account reset</a></div>
+</main>
+<script src="../js/data-store.js"></script><script src="../data/demo-data.js"></script><script src="../js/auth.js"></script><script src="../js/app.js"></script>
+<script>
+(function(){
+'use strict';
+const accounts={admin:'admin@phishguard.demo',user:'sara@phishguard.demo'};
+document.querySelectorAll('[data-demo]').forEach(btn=>btn.addEventListener('click',()=>{
+ const r=PGAuth.demoLogin(accounts[btn.dataset.demo]);const m=document.getElementById('message');
+ if(!r.ok){m.textContent=r.message;m.hidden=false;return}PGAuth.redirectByRole(r.user);
+}));
+})();
+</script></body></html>

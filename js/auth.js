@@ -36,6 +36,20 @@
       return { ok: true, user: session };
     },
 
+    demoLogin(email) {
+      const user = S.getUserByEmail(email);
+      if (!user) return { ok: false, message: 'Demo account not found.' };
+      const session = {
+        id: user.id,
+        role: user.role,
+        fullName: user.fullName,
+        email: user.email
+      };
+      S.setCurrentUser(session);
+      S.addEvent({ userId: user.id, type: 'login', mode: 'demo' });
+      return { ok: true, user: session };
+    },
+
     logout() {
       const current = S.getCurrentUser();
       if (current) S.addEvent({ userId: current.id, type: 'logout' });
