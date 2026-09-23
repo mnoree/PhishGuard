@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Users — PhishGuard</title><link rel="stylesheet" href="../css/styles.css">
+<style>
+.toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.toolbar input{min-width:240px;flex:1}
+.status-pill{display:inline-flex;align-items:center;padding:4px 9px;border-radius:999px;font-size:12px;font-weight:700}
+.status-active{background:#e9f6ef;color:#246b49}.status-inactive{background:#f1f3f5;color:#68727d}
+.table-wrap{overflow:auto}.data-table{width:100%;border-collapse:collapse;min-width:760px}.data-table th,.data-table td{padding:13px 10px;border-bottom:1px solid #edf0f2;text-align:left;vertical-align:middle}.data-table th{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:#6b747e}.data-table td{font-size:14px}
+.user-main{display:flex;gap:10px;align-items:center}.user-avatar{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:#eef2f5;font-weight:700}.actions{display:flex;gap:7px;flex-wrap:wrap}.btn-sm{padding:7px 10px;font-size:12px}
+.modal-backdrop{position:fixed;inset:0;background:rgba(15,23,42,.42);display:none;align-items:center;justify-content:center;padding:20px;z-index:50}.modal-backdrop.open{display:flex}.modal{width:min(680px,100%);max-height:90vh;overflow:auto;background:#fff;border-radius:14px;padding:22px;box-shadow:0 20px 60px rgba(0,0,0,.2)}.modal-head{display:flex;justify-content:space-between;gap:15px;align-items:start}.close{border:0;background:none;font-size:22px;cursor:pointer}.detail-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin:18px 0}.detail-box{padding:13px;border:1px solid #edf0f2;border-radius:10px}.detail-box .label{font-size:12px;color:#737c85}.detail-box strong{display:block;margin-top:4px}.empty{text-align:center;padding:30px 10px}.danger{color:#a33}
+@media(max-width:700px){.detail-grid{grid-template-columns:1fr}.toolbar input{min-width:100%}}
+</style>
+</head>
+<body>
+<div class="app-shell"><aside class="sidebar"><div class="brand">PHISH<span>GUARD</span></div>
+<nav class="nav"><a href="dashboard.html">Dashboard</a><a href="campaigns.html">Campaigns</a><a href="scenarios.html">Scenarios</a><a class="active" href="users.html">Users</a><a href="training.html">Training</a><a href="reports.html">Reports</a><a href="settings.html">Settings</a><a href="#" data-logout>Logout</a></nav></aside>
+<main class="main"><div class="container">
+<div class="topbar"><div><p class="eyebrow">ADMINISTRATION</p><h1>Users</h1><div class="muted">Manage demo participants and inspect their simulation activity.</div></div><div class="user-chip"><div class="avatar">A</div><span data-user-name></span></div></div>
+
+<section class="grid grid-4">
+<div class="card metric"><div class="label">Users</div><div class="value" id="totalUsers">0</div></div>
+<div class="card metric"><div class="label">Active</div><div class="value" id="activeUsers">0</div></div>
+<div class="card metric"><div class="label">Simulations</div><div class="value" id="simulationCount">0</div></div>
+<div class="card metric"><div class="label">Risk actions</div><div class="value" id="riskCount">0</div></div>
+</section>
+
+<section class="card section">
+<div class="toolbar"><input id="search" class="input" type="search" placeholder="Search by name or email…"><select id="statusFilter" class="input"><option value="all">All statuses</option><option value="active">Active</option><option value="inactive">Inactive</option></select></div>
+<div class="table-wrap" style="margin-top:15px"><table class="data-table"><thead><tr><th>User</th><th>Status</th><th>Simulations</th><th>Completed</th><th>Reports</th><th>Risk</th><th>Actions</th></tr></thead><tbody id="usersBody"></tbody></table></div>
+</section>
+</div></main></div>
+
+<div class="modal-backdrop" id="modal"><div class="modal"><div class="modal-head"><div><p class="eyebrow">USER DETAILS</p><h2 id="modalTitle">User</h2><div class="muted" id="modalSubtitle"></div></div><button class="close" id="closeModal" aria-label="Close">×</button></div><div id="modalContent"></div></div></div>
+
+<script src="../js/data-store.js"></script><script src="../data/demo-data.js"></script><script src="../js/auth.js"></script><script src="../js/app.js"></script>
+<script>
+(function(){
+'use strict';
+const admin=PGAuth.requireRole('admin'); if(!admin)return;
+const riskTypes=['link_clicked','credential_attempt','reply_attempted'];
+const qs=s=>document.querySelector(s), esc=v=>PGApp.escape(String(v??''));
+const events=()=>PGStore.getEvents(), users=()=>PGStore.getUsers().filter(u=>u.role==='user'), campaigns=()=>PGStore.getCampaigns();
+const userEvents=id=>events().filter(e=>e.userId===id);
+const countType=(arr,type)=>arr.filter(e=>e.type===type).length;
+const uniqCampaigns=(arr,type)=>new Set(arr.filter(e=>e.type===type).map(e=>e.campaignId)).size;
+function stats(u){const e=userEvents(u.id);return{events:e,sim:uniqCampaigns(e,'simulation_started'),done:uniqCampaigns(e,'simulation_completed'),reports:countType(e,'reported'),risk:riskTypes.reduce((n,t)=>n+countType(e,t),0)}}
+function render(){
+ const all=users(), q=qs('#search').value.trim().toLowerCase(), sf=qs('#statusFilter').value;
+ const filtered=all.filter(u=>(sf==='all'||(u.status||'active')===sf)&&(!q||[u.fullName,u.email].join(' ').toLowerCase().includes(q)));
+ qs('#totalUsers').textContent=all.length;qs('#activeUsers').textContent=all.filter(u=>(u.status||'active')==='active').length;
+ qs('#simulationCount').textContent=all.reduce((n,u)=>n+stats(u).sim,0);qs('#riskCount').textContent=all.reduce((n,u)=>n+stats(u).risk,0);
+ qs('#usersBody').innerHTML=filtered.length?filtered.map(u=>{
+   const s=stats(u), active=(u.status||'active')==='active';
+   return '<tr><td><div class="user-main"><div class="user-avatar">'+esc((u.fullName||'?')[0].toUpperCase())+'</div><div><strong>'+esc(u.fullName)+'</strong><br><small class="muted">'+esc(u.email)+'</small></div></div></td><td><span class="status-pill '+(active?'status-active':'status-inactive')+'">'+(active?'Active':'Inactive')+'</span></td><td>'+s.sim+'</td><td>'+s.done+'</td><td>'+s.reports+'</td><td>'+s.risk+'</td><td><div class="actions"><button class="btn btn-secondary btn-sm" data-view="'+esc(u.id)+'">View</button><button class="btn btn-secondary btn-sm" data-toggle="'+esc(u.id)+'">'+(active?'Deactivate':'Activate')+'</button></div></td></tr>';
+ }).join(''):'<tr><td colspan="7"><div class="empty muted">No users match the current filters.</div></td></tr>';
+ document.querySelectorAll('[data-view]').forEach(b=>b.onclick=()=>openDetails(b.dataset.view));
+ document.querySelectorAll('[data-toggle]').forEach(b=>b.onclick=()=>toggleUser(b.dataset.toggle));
+}
+function toggleUser(id){
+ const u=PGStore.getUserById(id); if(!u)return;
+ const next=(u.status||'active')==='active'?'inactive':'active';
+ if(next==='inactive'&&id===admin.id){alert('The current admin account cannot be deactivated from this page.');return}
+ PGStore.updateUser(id,{status:next}); render();
+}
+function openDetails(id){
+ const u=PGStore.getUserById(id); if(!u)return;
+ const s=stats(u), camp=campaigns(), e=s.events.slice().sort((a,b)=>new Date(b.timestamp)-new Date(a.timestamp)).slice(0,8);
+ qs('#modalTitle').textContent=u.fullName;qs('#modalSubtitle').textContent=u.email;
+ const rows=e.map(x=>'<div class="mini-row"><span><strong>'+esc(x.type.replaceAll('_',' '))+'</strong><small class="muted"><br>'+esc((camp.find(c=>c.id===x.campaignId)||{}).name||'Simulation')+'</small></span><span class="muted small">'+new Date(x.timestamp).toLocaleString()+'</span></div>').join('');
+ qs('#modalContent').innerHTML='<div class="detail-grid"><div class="detail-box"><span class="label">Status</span><strong>'+(u.status||'active')+'</strong></div><div class="detail-box"><span class="label">Role</span><strong>'+esc(u.role)+'</strong></div><div class="detail-box"><span class="label">Simulations</span><strong>'+s.sim+'</strong></div><div class="detail-box"><span class="label">Completed</span><strong>'+s.done+'</strong></div><div class="detail-box"><span class="label">Reports</span><strong>'+s.reports+'</strong></div><div class="detail-box"><span class="label">Risk actions</span><strong>'+s.risk+'</strong></div></div><h3>Recent activity</h3><div class="mini-list">'+(rows||'<div class="empty muted">No activity recorded.</div>')+'</div>';
+ qs('#modal').classList.add('open');
+}
+qs('#search').addEventListener('input',render);qs('#statusFilter').addEventListener('change',render);
+qs('#closeModal').onclick=()=>qs('#modal').classList.remove('open');
+qs('#modal').addEventListener('click',e=>{if(e.target.id==='modal')qs('#modal').classList.remove('open')});
+render();
+})();
+</script>
+</body></html>

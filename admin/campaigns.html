@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Campaigns — PhishGuard</title><link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
+<div class="app-shell">
+<aside class="sidebar">
+  <div class="brand">PHISH<span>GUARD</span></div>
+  <nav class="nav">
+    <a href="dashboard.html">Dashboard</a><a class="active" href="campaigns.html">Campaigns</a>
+    <a href="scenarios.html">Scenarios</a><a href="users.html">Users</a><a href="training.html">Training</a><a href="reports.html">Reports</a><a href="settings.html">Settings</a>
+    <a href="#" data-logout>Logout</a>
+  </nav>
+</aside>
+<main class="main"><div class="container">
+  <div class="topbar">
+    <div><p class="eyebrow">SIMULATION MANAGEMENT</p><h1>Campaigns</h1><div class="muted">Create, assign, publish, and monitor controlled phishing simulations.</div></div>
+    <button class="btn btn-primary" id="newCampaignBtn">+ Create campaign</button>
+  </div>
+
+  <section class="grid grid-4 campaign-metrics">
+    <div class="card metric"><div class="label">Total campaigns</div><div class="value" id="totalCampaigns">0</div></div>
+    <div class="card metric"><div class="label">Active</div><div class="value" id="activeCampaigns">0</div></div>
+    <div class="card metric"><div class="label">Assigned users</div><div class="value" id="assignedUsers">0</div></div>
+    <div class="card metric"><div class="label">Completed</div><div class="value" id="completedRuns">0</div></div>
+  </section>
+
+  <section class="card section">
+    <div class="section-title"><h2>Campaign library</h2><span class="muted small" id="campaignHint"></span></div>
+    <div class="table-wrap"><table class="table"><thead><tr><th>Campaign</th><th>Scenario</th><th>Channel</th><th>Device</th><th>Targets</th><th>Status</th><th>Progress</th><th>Actions</th></tr></thead><tbody id="campaignRows"></tbody></table></div>
+  </section>
+
+  <section class="card section" id="campaignDetail" hidden></section>
+</div></main></div>
+
+<div class="modal-backdrop" id="campaignModal" hidden>
+  <div class="modal card" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal-head"><div><p class="eyebrow">NEW CAMPAIGN</p><h2 id="modalTitle">Create campaign</h2></div><button class="icon-btn" id="closeModal" aria-label="Close">×</button></div>
+    <form id="campaignForm">
+      <div class="form-group"><label class="form-label" for="campaignName">Campaign name</label><input class="form-control" id="campaignName" required maxlength="80" placeholder="e.g. Q4 Account Security Check"></div>
+      <div class="form-group"><label class="form-label" for="channel">Simulation channel</label><select class="form-control" id="channel"><option value="email">Email</option><option value="sms">SMS / Messages</option><option value="phone" disabled>Phone call · Coming soon</option></select><div class="muted small">SMS is simulated inside PhishGuard. No real messages are sent.</div></div><div class="form-group"><label class="form-label" for="device">Simulation device</label><select class="form-control" id="device"><option value="desktop">Desktop</option><option value="mobile">Mobile</option></select></div><div class="form-group"><label class="form-label" for="scenarioId">Phishing scenario</label><select class="form-control" id="scenarioId" required></select><div class="muted small" id="scenarioPreview"></div></div>
+      <div class="form-group"><label class="form-label">Target users</label><div class="selection-toolbar"><span class="muted small" id="selectedCount">0 selected</span><button type="button" class="text-btn" id="selectAll">Select all</button><button type="button" class="text-btn" id="clearAll">Clear</button></div><div id="userOptions" class="user-options"></div></div>
+      <div class="form-group"><label class="form-label" for="status">Initial status</label><select class="form-control" id="status"><option value="draft">Save as draft</option><option value="active">Publish now</option></select></div>
+      <div id="formError" class="error" hidden></div>
+      <div class="modal-actions"><button type="button" class="btn btn-secondary" id="cancelBtn">Cancel</button><button class="btn btn-primary" type="submit" id="createBtn">Create campaign</button></div>
+    </form>
+  </div>
+</div>
+
+<script src="../js/data-store.js"></script><script src="../data/demo-data.js"></script><script src="../js/auth.js"></script><script src="../js/app.js"></script>
+<script>
+(function(){
+  'use strict';
+  const admin=PGAuth.requireRole('admin'); if(!admin)return;
+  const campaignsEl=document.getElementById('campaignRows');
+  const modal=document.getElementById('campaignModal'); const form=document.getElementById('campaignForm');
+  const scenarioSelect=document.getElementById('scenarioId'); const usersEl=document.getElementById('userOptions');
+  const preview=document.getElementById('scenarioPreview'); const error=document.getElementById('formError');
+  const users=PGStore.getUsers().filter(u=>u.role==='user');
+  function esc(v){return PGApp.escape(v)}
+  function eventsFor(c){return PGStore.getEvents().filter(e=>e.campaignId===c.id)}
+  function renderFormOptions(){
+    const scenarios=PGStore.getScenarios();
+    scenarioSelect.innerHTML='<option value="">Choose a scenario...</option>'+scenarios.map(s=>`<option value="${esc(s.id)}">${esc(s.title)} · ${esc(s.category)}</option>`).join('');
+    usersEl.innerHTML=users.length?users.map(u=>`<label class="user-option"><input type="checkbox" value="${esc(u.id)}"><span><strong>${esc(u.fullName)}</strong><small>${esc(u.email)} · ${esc(u.position||'User')}</small></span></label>`).join(''):'<div class="empty">No user accounts available.</div>';
+    usersEl.querySelectorAll('input').forEach(i=>i.addEventListener('change',updateSelected));
+  }
+  function updateSelected(){document.getElementById('selectedCount').textContent=usersEl.querySelectorAll('input:checked').length+' selected'}
+  function render(){
+    const scenarios=PGStore.getScenarios(); const camps=PGStore.getCampaigns(); const ev=PGStore.getEvents();
+    document.getElementById('totalCampaigns').textContent=camps.length;
+    document.getElementById('activeCampaigns').textContent=camps.filter(c=>c.status==='active').length;
+    document.getElementById('assignedUsers').textContent=[...new Set(camps.flatMap(c=>c.targetUserIds||[]))].length;
+    document.getElementById('completedRuns').textContent=ev.filter(e=>e.type==='simulation_completed').length;
+    document.getElementById('campaignHint').textContent=camps.length+' campaign'+(camps.length===1?'':'s');
+    if(!camps.length){campaignsEl.innerHTML='<tr><td colspan="8"><div class="empty">No campaigns yet. Create your first controlled simulation.</div></td></tr>';return}
+    campaignsEl.innerHTML=camps.map(c=>{
+      const s=scenarios.find(x=>x.id===c.scenarioId); const evs=eventsFor(c); const completed=new Set(evs.filter(e=>e.type==='simulation_completed').map(e=>e.userId)).size; const target=(c.targetUserIds||[]).length; const pct=target?Math.round(completed/target*100):0;
+      return `<tr><td><strong>${esc(c.name)}</strong><div class="muted small">${new Date(c.createdAt).toLocaleDateString()}</div></td><td>${esc(s?s.title:'Unknown scenario')}</td><td><span class="badge badge-neutral">${esc(c.channel||'email')}</span></td><td>${esc(c.device||'desktop')}</td><td>${target}</td><td><span class="badge ${c.status==='active'?'badge-success':'badge-neutral'}">${esc(c.status)}</span></td><td><div class="progress-inline"><span>${completed}/${target}</span><div class="progress-track"><i style="width:${pct}%"></i></div></div></td><td><div class="table-actions"><button class="text-btn" data-view="${esc(c.id)}">View</button>${c.status==='draft'?`<button class="text-btn" data-publish="${esc(c.id)}">Publish</button>`:''}${c.status==='active'?`<button class="text-btn danger-link" data-pause="${esc(c.id)}">Pause</button>`:''}</div></td></tr>`;
+    }).join('');
+    campaignsEl.querySelectorAll('[data-view]').forEach(b=>b.onclick=()=>showDetail(b.dataset.view));
+    campaignsEl.querySelectorAll('[data-publish]').forEach(b=>b.onclick=()=>{PGStore.updateCampaign(b.dataset.publish,{status:'active',publishedAt:new Date().toISOString()});render();});
+    campaignsEl.querySelectorAll('[data-pause]').forEach(b=>b.onclick=()=>{PGStore.updateCampaign(b.dataset.pause,{status:'paused',pausedAt:new Date().toISOString()});render();});
+  }
+  function showDetail(id){
+    const scenarios=PGStore.getScenarios(); const c=PGStore.getCampaigns().find(x=>x.id===id); if(!c)return; const s=scenarios.find(x=>x.id===c.scenarioId); const targetIds=c.targetUserIds||[]; const ev=eventsFor(c); const detail=document.getElementById('campaignDetail');
+    detail.hidden=false; detail.innerHTML=`<div class="detail-head"><div><p class="eyebrow">CAMPAIGN DETAILS</p><h2>${esc(c.name)}</h2><p class="muted">${esc(s?s.title:'Unknown scenario')} · ${esc(c.channel||'email')} · ${esc(c.device||'desktop')} · <span class="badge ${c.status==='active'?'badge-success':'badge-neutral'}">${esc(c.status)}</span></p></div><button class="btn btn-ghost" id="closeDetail">Close</button></div><div class="grid grid-3"><div><div class="label muted small">Targets</div><strong>${targetIds.length}</strong></div><div><div class="label muted small">Completed</div><strong>${new Set(ev.filter(e=>e.type==='simulation_completed').map(e=>e.userId)).size}</strong></div><div><div class="label muted small">Events</div><strong>${ev.length}</strong></div></div><div class="detail-targets"><h3>Target users</h3>${targetIds.map(uid=>{const u=users.find(x=>x.id===uid);const done=ev.some(e=>e.userId===uid&&e.type==='simulation_completed');return `<div class="target-row"><span><strong>${esc(u?u.fullName:uid)}</strong><small>${esc(u?u.email:'')}</small></span><span class="badge ${done?'badge-success':'badge-neutral'}">${done?'Completed':'Pending'}</span></div>`}).join('')}</div>`;
+    document.getElementById('closeDetail').onclick=()=>detail.hidden=true;
+    detail.scrollIntoView({behavior:'smooth',block:'start'});
+  }
+  function openModal(){renderFormOptions();form.reset();document.getElementById('channel').value='email';document.getElementById('device').value='desktop';updateSelected();preview.textContent='';error.hidden=true;modal.hidden=false;document.getElementById('campaignName').focus()}
+  function closeModal(){modal.hidden=true}
+  scenarioSelect.onchange=()=>{const s=PGStore.getScenarios().find(x=>x.id===scenarioSelect.value);preview.textContent=s?`${s.difficulty} · ${s.sender} · ${s.subject}`:''};
+  document.getElementById('channel').onchange=()=>{const ch=document.getElementById('channel').value;if(ch==='sms')document.getElementById('device').value='mobile';if(ch==='email')document.getElementById('device').value='desktop';};
+  document.getElementById('selectAll').onclick=()=>{usersEl.querySelectorAll('input').forEach(i=>i.checked=true);updateSelected()};
+  document.getElementById('clearAll').onclick=()=>{usersEl.querySelectorAll('input').forEach(i=>i.checked=false);updateSelected()};
+  document.getElementById('newCampaignBtn').onclick=openModal; document.getElementById('closeModal').onclick=closeModal; document.getElementById('cancelBtn').onclick=closeModal;
+  modal.addEventListener('click',e=>{if(e.target===modal)closeModal()});
+  form.onsubmit=e=>{
+    e.preventDefault(); error.hidden=true;
+    const name=document.getElementById('campaignName').value.trim(); const scenarioId=scenarioSelect.value; const channel=document.getElementById('channel').value; const device=document.getElementById('device').value; const targetUserIds=[...usersEl.querySelectorAll('input:checked')].map(i=>i.value); const status=document.getElementById('status').value;
+    if(!name||!scenarioId||!targetUserIds.length){error.textContent='Add a campaign name, choose a scenario, and select at least one user.';error.hidden=false;return}
+    const selectedScenario=PGStore.getScenarios().find(s=>s.id===scenarioId);
+    const scenarioChannel=selectedScenario&&selectedScenario.channel?selectedScenario.channel:'email';
+    if(selectedScenario&&scenarioChannel!==channel){error.textContent='The selected scenario is configured for '+scenarioChannel.toUpperCase()+'. Choose a matching simulation channel or edit the scenario first.';error.hidden=false;return}
+    const campaign={id:PGStore.id('camp'),name,scenarioId,channel,device,status,createdBy:admin.id,targetUserIds,createdAt:new Date().toISOString(),publishedAt:status==='active'?new Date().toISOString():null};
+    PGStore.addCampaign(campaign); closeModal(); render(); showDetail(campaign.id);
+  };
+  render();
+})();
+</script>
+</body></html>

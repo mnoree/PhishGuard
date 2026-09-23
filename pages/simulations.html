@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Simulations — PhishGuard</title>
+<link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
+<div class="app-shell">
+<aside class="sidebar">
+  <div class="brand">PHISH<span>GUARD</span></div>
+  <nav class="nav">
+    <a href="user-dashboard.html">Dashboard</a>
+    <a class="active" href="simulations.html">Simulations</a>
+    <a href="training.html">Training</a>
+    <a href="results.html">Results</a>
+    <a href="account.html">Account</a>
+    <a href="#" data-logout>Logout</a>
+  </nav>
+</aside>
+<main class="main">
+<div class="container simulation-page">
+  <div class="topbar">
+    <div><p class="eyebrow">AWARENESS PRACTICE</p><h1>Simulation Inbox</h1><div class="muted">Review messages like you would at work. Nothing here sends real email or collects real credentials.</div></div>
+  </div>
+
+  <section class="sim-inbox card">
+    <div class="inbox-toolbar">
+      <div><strong>Inbox</strong><span id="messageCount" class="inbox-count"></span></div>
+      <div class="inbox-hint">Tip: inspect the sender, urgency, links, and request before acting.</div>
+    </div>
+    <div id="inboxList" class="inbox-list"></div>
+  </section>
+
+  <section id="emailView" class="email-view card" hidden></section>
+</div>
+</main></div>
+<script src="../js/data-store.js"></script>
+<script src="../data/demo-data.js"></script>
+<script src="../js/auth.js"></script>
+<script src="../js/app.js"></script>
+<script src="../js/simulations.js"></script>
+</body></html>

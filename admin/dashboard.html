@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Admin Dashboard — PhishGuard</title><link rel="stylesheet" href="../css/styles.css">
+<style>
+.dashboard-grid{display:grid;grid-template-columns:1.35fr .65fr;gap:18px}
+.mini-list{display:grid;gap:10px}.mini-row{display:flex;justify-content:space-between;gap:14px;padding:12px 0;border-bottom:1px solid #edf0f2}.mini-row:last-child{border-bottom:0}
+.health{display:flex;align-items:center;gap:9px}.dot{width:9px;height:9px;border-radius:50%;background:#24704e}
+.kpi-note{margin-top:5px}.quick-actions{display:flex;flex-wrap:wrap;gap:9px}
+.metric .value{font-size:30px}
+.empty{padding:18px 0}
+</style>
+</head>
+<body>
+<div class="app-shell">
+<aside class="sidebar"><div class="brand">PHISH<span>GUARD</span></div>
+<nav class="nav"><a class="active" href="dashboard.html">Dashboard</a><a href="campaigns.html">Campaigns</a><a href="scenarios.html">Scenarios</a><a href="users.html">Users</a><a href="training.html">Training</a><a href="reports.html">Reports</a><a href="settings.html">Settings</a><a href="#" data-logout>Logout</a></nav></aside>
+<main class="main"><div class="container">
+<div class="topbar"><div><p class="eyebrow">CONTROL CENTER</p><h1>Admin Dashboard</h1><div class="muted">Live overview of campaigns, simulation behavior, and training activity.</div></div><div class="user-chip"><div class="avatar">A</div><span data-user-name></span></div></div>
+
+<section class="grid grid-4">
+<div class="card metric"><div class="label">Users</div><div class="value" id="users">0</div><div class="muted small kpi-note" id="userNote"></div></div>
+<div class="card metric"><div class="label">Active campaigns</div><div class="value" id="campaigns">0</div><div class="muted small kpi-note" id="campaignNote"></div></div>
+<div class="card metric"><div class="label">Completed simulations</div><div class="value" id="completed">0</div><div class="muted small kpi-note" id="completionNote"></div></div>
+<div class="card metric"><div class="label">Risk actions</div><div class="value" id="risk">0</div><div class="muted small kpi-note" id="riskNote"></div></div>
+</section>
+
+<section class="dashboard-grid section">
+<div class="card">
+<div class="section-title"><div><h2>Simulation activity</h2><div class="muted small">Current event activity across active campaigns.</div></div><a class="text-btn" href="reports.html">View reports</a></div>
+<div id="activity"></div>
+</div>
+<div class="card">
+<div class="section-title"><h2>System status</h2></div>
+<div class="mini-list">
+<div class="mini-row"><span>Data layer</span><span class="health"><i class="dot"></i>Operational</span></div>
+<div class="mini-row"><span>Simulation engine</span><span class="health"><i class="dot"></i>Ready</span></div>
+<div class="mini-row"><span>Training library</span><span class="health"><i class="dot"></i><span id="courseStatus">0 courses</span></span></div>
+<div class="mini-row"><span>Delivery mode</span><span class="muted">Controlled demo</span></div>
+</div>
+</div>
+</section>
+
+<section class="grid grid-2 section">
+<div class="card"><div class="section-title"><div><h2>Campaign snapshot</h2><div class="muted small">Completion and attention by campaign.</div></div><a class="text-btn" href="campaigns.html">Manage</a></div><div class="mini-list" id="campaignList"></div></div>
+<div class="card"><div class="section-title"><div><h2>Training snapshot</h2><div class="muted small">Progress after simulation results.</div></div><a class="text-btn" href="training.html">Manage</a></div><div class="mini-list" id="trainingList"></div></div>
+</section>
+
+<section class="card section">
+<div class="section-title"><div><h2>Quick actions</h2><div class="muted small">Jump directly into the parts of the platform used during a demo.</div></div></div>
+<div class="quick-actions"><a class="btn btn-primary" href="campaigns.html">Create campaign</a><a class="btn btn-secondary" href="scenarios.html">Create scenario</a><a class="btn btn-secondary" href="reports.html">Open analytics</a><a class="btn btn-secondary" href="users.html">Manage users</a></div>
+</section>
+
+<section class="card section"><div class="section-title"><div><h2>Needs attention</h2><div class="muted small">Generated from recorded behavior — not placeholder values.</div></div></div><div id="attention"></div></section>
+</div></main></div>
+<script src="../js/data-store.js"></script><script src="../data/demo-data.js"></script><script src="../js/auth.js"></script><script src="../js/app.js"></script>
+<script>
+(function(){
+'use strict';
+const u=PGAuth.requireRole('admin'); if(!u)return;
+const users=PGStore.getUsers().filter(x=>x.role==='user'), camps=PGStore.getCampaigns(), ev=PGStore.getEvents(), courses=PGStore.getCourses(), prog=PGStore.getTrainingProgress(), scenarios=PGStore.getScenarios();
+const riskTypes=['link_clicked','credential_attempt','reply_attempted'];
+const uniq=(arr,type)=>new Set(arr.filter(e=>e.type===type).map(e=>e.userId+'|'+e.campaignId)).size;
+const esc=v=>PGApp.escape(v);
+const completed=uniq(ev,'simulation_completed');
+const risk=riskTypes.reduce((n,t)=>n+uniq(ev,t),0);
+const active=camps.filter(c=>c.status==='active');
+document.getElementById('users').textContent=users.length;
+document.getElementById('userNote').textContent=users.length+' participant'+(users.length===1?'':'s');
+document.getElementById('campaigns').textContent=active.length;
+document.getElementById('campaignNote').textContent=camps.length+' total campaign'+(camps.length===1?'':'s');
+document.getElementById('completed').textContent=completed;
+document.getElementById('completionNote').textContent=ev.filter(e=>e.type==='simulation_started').length+' simulation starts';
+document.getElementById('risk').textContent=risk;
+document.getElementById('riskNote').textContent=risk?'Actions requiring follow-up':'No risk actions recorded';
+document.getElementById('courseStatus').textContent=courses.length+' course'+(courses.length===1?'':'s');
+
+const activityLabels={simulation_started:'Simulation started',email_opened:'Email opened',sms_opened:'SMS opened',link_clicked:'Link clicked',reply_attempted:'Reply attempted',credential_attempt:'Credential attempt',reported:'Phishing reported',simulation_completed:'Simulation completed'};
+const recent=[...ev].sort((a,b)=>new Date(b.timestamp)-new Date(a.timestamp)).slice(0,8);
+document.getElementById('activity').innerHTML=recent.length?'<div class="mini-list">'+recent.map(e=>{
+ const user=PGStore.getUserById(e.userId), camp=camps.find(c=>c.id===e.campaignId);
+ return '<div class="mini-row"><span><strong>'+esc(activityLabels[e.type]||e.type.replaceAll('_',' '))+'</strong><small class="muted"><br>'+esc(user?user.fullName:'Unknown')+' · '+esc(camp?camp.name:'Campaign')+'</small></span><span class="muted small">'+new Date(e.timestamp).toLocaleString()+'</span></div>';
+}).join('')+'</div>':'<div class="empty muted">No simulation activity yet.</div>';
+
+document.getElementById('campaignList').innerHTML=camps.length?camps.slice().reverse().slice(0,6).map(c=>{
+ const ce=ev.filter(e=>e.campaignId===c.id), target=(c.targetUserIds||[]).length, done=uniq(ce,'simulation_completed'), riskCount=riskTypes.reduce((n,t)=>n+uniq(ce,t),0), pct=target?Math.round(done/target*100):0;
+ return '<div class="mini-row"><span><strong>'+esc(c.name)+'</strong><small class="muted"><br>'+esc(c.channel||'email')+' · '+esc(c.device||'desktop')+'</small></span><span class="muted small">'+done+'/'+target+' · '+pct+'%'+(riskCount?' · '+riskCount+' risk':'')+'</span></div>';
+}).join(''):'<div class="empty muted">No campaigns created.</div>';
+
+const trainingByCourse=courses.map(c=>{
+ const ps=prog.filter(p=>p.courseId===c.id), avg=ps.length?Math.round(ps.reduce((n,p)=>n+(p.progress??(p.completed?100:0)),0)/ps.length):0;
+ return {c,avg,learners:ps.length};
+}).sort((a,b)=>b.avg-a.avg).slice(0,5);
+document.getElementById('trainingList').innerHTML=trainingByCourse.length?trainingByCourse.map(x=>'<div class="mini-row"><span><strong>'+esc(x.c.title)+'</strong><small class="muted"><br>'+x.learners+' learner'+(x.learners===1?'':'s')+'</small></span><span class="muted small">'+x.avg+'%</span></div>').join(''):'<div class="empty muted">No training progress recorded yet.</div>';
+
+const attention=[];
+if(risk) attention.push('<div class="target-row"><span><strong>'+risk+' risk action'+(risk===1?'':'s')+' recorded</strong><small>Review Reports to inspect the affected campaign and user.</small></span><a class="text-btn" href="reports.html">Review</a></div>');
+const incomplete=active.filter(c=>!ev.some(e=>e.campaignId===c.id&&e.type==='simulation_completed'));
+if(incomplete.length) attention.push('<div class="target-row"><span><strong>'+incomplete.length+' active campaign'+(incomplete.length===1?'':'s')+' without a completed run</strong><small>Check target assignment or run the user simulation.</small></span><a class="text-btn" href="campaigns.html">Open</a></div>');
+const noScenario=camps.filter(c=>!scenarios.some(s=>s.id===c.scenarioId));
+if(noScenario.length) attention.push('<div class="target-row"><span><strong>'+noScenario.length+' campaign'+(noScenario.length===1?'':'s')+' with missing scenarios</strong><small>Review campaign configuration.</small></span><a class="text-btn" href="campaigns.html">Review</a></div>');
+document.getElementById('attention').innerHTML=attention.length?attention.join(''):'<div class="empty"><strong>Everything looks quiet.</strong><p class="muted">No recorded issues require admin follow-up right now.</p></div>';
+})();
+</script>
+</body></html>

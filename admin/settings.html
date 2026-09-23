@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Settings — PhishGuard</title><link rel="stylesheet" href="../css/styles.css">
+<style>
+.setting-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}.setting-card{padding:18px}.setting-row{display:flex;justify-content:space-between;gap:20px;align-items:center;padding:15px 0;border-bottom:1px solid #edf0f2}.setting-row:last-child{border-bottom:0}.setting-row h3{margin:0 0 4px;font-size:15px}.setting-row p{margin:0}.danger-zone{border:1px solid #ead5d5}.notice{padding:12px 14px;border-radius:9px;background:#f5f7f9;margin-top:14px}.modal-backdrop{position:fixed;inset:0;background:rgba(15,23,42,.42);display:none;align-items:center;justify-content:center;padding:20px;z-index:50}.modal-backdrop.open{display:flex}.modal{width:min(520px,100%);background:#fff;border-radius:14px;padding:22px;box-shadow:0 20px 60px rgba(0,0,0,.2)}.modal-actions{display:flex;justify-content:flex-end;gap:9px;margin-top:18px}.toggle{width:44px;height:24px;appearance:none;background:#cbd2d9;border-radius:20px;position:relative;cursor:pointer}.toggle:checked{background:#24704e}.toggle:before{content:'';position:absolute;width:18px;height:18px;top:3px;left:3px;background:#fff;border-radius:50%;transition:.15s}.toggle:checked:before{left:23px}
+@media(max-width:800px){.setting-grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="app-shell"><aside class="sidebar"><div class="brand">PHISH<span>GUARD</span></div>
+<nav class="nav"><a href="dashboard.html">Dashboard</a><a href="campaigns.html">Campaigns</a><a href="scenarios.html">Scenarios</a><a href="users.html">Users</a><a href="training.html">Training</a><a href="reports.html">Reports</a><a class="active" href="settings.html">Settings</a><a href="#" data-logout>Logout</a></nav></aside>
+<main class="main"><div class="container">
+<div class="topbar"><div><p class="eyebrow">ADMINISTRATION</p><h1>Settings</h1><div class="muted">Control the local demonstration environment and review system information.</div></div><div class="user-chip"><div class="avatar">A</div><span data-user-name></span></div></div>
+
+<div class="setting-grid">
+<section class="card setting-card"><h2>Demo environment</h2>
+<div class="setting-row"><div><h3>Demo mode</h3><p class="muted small">Keep PhishGuard clearly in controlled simulation mode.</p></div><input id="demoMode" class="toggle" type="checkbox" checked></div>
+<div class="setting-row"><div><h3>External delivery</h3><p class="muted small">Email, SMS and phone delivery are disabled in this frontend demo.</p></div><strong>Disabled</strong></div>
+<div class="setting-row"><div><h3>Data storage</h3><p class="muted small">Browser localStorage only.</p></div><strong>Local</strong></div>
+</section>
+
+<section class="card setting-card"><h2>Admin account</h2>
+<div class="setting-row"><div><h3>Signed in as</h3><p class="muted small" id="adminEmail">—</p></div><strong>Administrator</strong></div>
+<div class="setting-row"><div><h3>Project version</h3><p class="muted small">Current frontend master build.</p></div><strong>V3</strong></div>
+<div class="setting-row"><div><h3>Reset session</h3><p class="muted small">Sign out this browser session.</p></div><button class="btn btn-secondary" id="logoutBtn">Logout</button></div>
+</section>
+
+<section class="card setting-card"><h2>Data summary</h2>
+<div class="setting-row"><span>Users</span><strong id="users">0</strong></div><div class="setting-row"><span>Campaigns</span><strong id="campaigns">0</strong></div><div class="setting-row"><span>Scenarios</span><strong id="scenarios">0</strong></div><div class="setting-row"><span>Recorded events</span><strong id="events">0</strong></div><div class="setting-row"><span>Courses</span><strong id="courses">0</strong></div>
+</section>
+
+<section class="card setting-card danger-zone"><h2>Demo data</h2><p class="muted">Reset removes the locally stored PhishGuard V3 data from this browser. The page will reload and the demo seed data will be restored by the demo-data layer.</p><button class="btn btn-secondary" id="resetBtn">Reset demo data</button><div class="notice">Use this before a presentation if you want to return the browser to its initial demo state.</div></section>
+</div>
+</div></main></div>
+
+<div class="modal-backdrop" id="confirmModal"><div class="modal"><h2>Reset demo data?</h2><p class="muted">This will clear the current local simulation state in this browser. Continue?</p><div class="modal-actions"><button class="btn btn-secondary" id="cancelReset">Cancel</button><button class="btn btn-primary" id="confirmReset">Reset data</button></div></div></div>
+
+<script src="../js/data-store.js"></script><script src="../data/demo-data.js"></script><script src="../js/auth.js"></script><script src="../js/app.js"></script>
+<script>
+(function(){
+'use strict';
+const admin=PGAuth.requireRole('admin'); if(!admin)return;
+const q=s=>document.querySelector(s);
+q('#adminEmail').textContent=admin.email;
+q('#users').textContent=PGStore.getUsers().length;
+q('#campaigns').textContent=PGStore.getCampaigns().length;
+q('#scenarios').textContent=PGStore.getScenarios().length;
+q('#events').textContent=PGStore.getEvents().length;
+q('#courses').textContent=PGStore.getCourses().length;
+const saved=localStorage.getItem('phishguard_v3_demo_mode');
+q('#demoMode').checked=saved!=='false';
+q('#demoMode').onchange=()=>localStorage.setItem('phishguard_v3_demo_mode',q('#demoMode').checked?'true':'false');
+q('#logoutBtn').onclick=e=>{e.preventDefault();PGAuth.logout();};
+q('#resetBtn').onclick=()=>q('#confirmModal').classList.add('open');
+q('#cancelReset').onclick=()=>q('#confirmModal').classList.remove('open');
+q('#confirmReset').onclick=()=>{
+ PGStore.reset();
+ localStorage.removeItem('phishguard_v3_demo_mode');
+ location.href='../pages/login.html';
+};
+q('#confirmModal').onclick=e=>{if(e.target.id==='confirmModal')q('#confirmModal').classList.remove('open')};
+})();
+</script>
+</body></html>

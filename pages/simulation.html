@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Simulation — PhishGuard</title><link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
+<div class="app-shell simulation-app-shell">
+  <aside class="sidebar">
+    <div class="brand">PHISH<span>GUARD</span></div>
+    <nav class="nav">
+      <a href="user-dashboard.html">Dashboard</a><a href="simulations.html" class="active">Simulations</a>
+      <a href="training.html">Training</a><a href="results.html">Results</a><a href="account.html">Account</a>
+      <a href="#" data-logout>Logout</a>
+    </nav>
+  </aside>
+  <main class="main">
+    <div class="container simulation-container">
+      <div class="topbar">
+        <div><div class="eyebrow">CONTROLLED TRAINING</div><h1 id="pageTitle">Phishing simulation</h1><div class="muted" id="pageSubtitle">Review the message carefully before taking action.</div></div>
+        <a class="btn btn-ghost" href="simulations.html">Exit simulation</a>
+      </div>
+      <div id="stage"></div>
+    </div>
+  </main>
+</div>
+<script src="../js/data-store.js"></script><script src="../data/demo-data.js"></script><script src="../js/auth.js"></script><script src="../js/app.js"></script>
+<script>
+(function(){
+'use strict';
+const user=PGAuth.requireRole('user'); if(!user)return;
+const id=new URLSearchParams(location.search).get('campaign');
+const campaign=PGStore.getCampaigns().find(c=>c.id===id&&(c.targetUserIds||[]).includes(user.id));
+const scenario=campaign&&PGStore.getScenarios().find(s=>s.id===campaign.scenarioId);
+const stage=document.getElementById('stage');
+if(!campaign||!scenario){stage.innerHTML='<div class="card empty"><h2>Simulation not found</h2><p>We could not find an assigned simulation for this account.</p><a class="btn btn-primary" href="simulations.html">Back to simulations</a></div>';return;}
+const channel=campaign.channel||'email'; const device=campaign.device||(channel==='sms'?'mobile':'desktop');
+function esc(v){return PGApp.escape(v)}
+function has(type){return PGStore.getEvents().some(e=>e.userId===user.id&&e.campaignId===campaign.id&&e.type===type)}
+function add(type,metadata){if(!has(type))PGStore.addEvent({userId:user.id,campaignId:campaign.id,type,metadata});}
+add('simulation_started');
+function finish(reported,attempt){if(reported)add('reported');add('simulation_completed',{reported,attempt,channel,device});location.href='results.html?campaign='+encodeURIComponent(campaign.id)}
+function renderEmail(){add('email_opened');document.getElementById('pageTitle').textContent=scenario.subject;document.getElementById('pageSubtitle').textContent='Desktop email simulation · inspect the sender, urgency, request, and link before acting.';stage.innerHTML=`<div class="simulation-workspace"><div class="card simulation-email-card ${device==='mobile'?'email-device-mobile':''}"><div class="sim-mail-toolbar"><span class="badge badge-warning">Email simulation · ${device==='mobile'?'Mobile':'Desktop'}</span><span class="muted small">Today · 9:42 AM</span></div><div class="sim-mail-header"><div class="sender-avatar">${esc((scenario.sender||'?').charAt(0).toUpperCase())}</div><div><strong>${esc(scenario.sender)}</strong><div class="muted small">To: ${esc(user.email)}</div></div></div><h2 class="email-subject">${esc(scenario.subject)}</h2><div class="email-body">${esc(scenario.body).replace(/\n/g,'<br>')}<div class="fake-cta">${esc(scenario.cta)}</div></div><div class="simulation-choice"><div><strong>What would you do?</strong><p class="muted small">Choose the action you would take in a real inbox.</p></div><div class="email-actions"><button class="btn btn-danger" id="reportBtn">⚑ Report phishing</button><button class="btn btn-primary" id="reviewBtn">Review activity</button></div></div><p class="sim-disclaimer">PhishGuard never asks you to enter a real password during this simulation.</p></div><aside class="card red-flags-card"><div class="eyebrow">TRAINING NOTE</div><h3>Look before you act</h3><p class="muted small">Check the sender, domain, urgency, unexpected request, and destination.</p><div class="privacy-note">🔒 No real credentials are collected.</div></aside></div>`;document.getElementById('reportBtn').onclick=()=>finish(true,false);document.getElementById('reviewBtn').onclick=()=>{add('link_clicked');renderLanding()};}
+function renderLanding(){add('landing_page_viewed');document.getElementById('pageTitle').textContent='Account verification';document.getElementById('pageSubtitle').textContent='Simulated landing page · inspect the address before entering anything.';stage.innerHTML=`<div class="simulation-workspace"><div class="card browser-card"><div class="browser-bar"><span></span><span></span><span></span><div class="browser-address">https://account-security.example/verify</div></div><div class="fake-login-page"><div class="fake-brand"><span class="fake-logo">M</span><strong>Microsoft 365</strong></div><div class="fake-login-box"><div class="badge badge-warning">Simulated sign-in page</div><h2>Verify your account</h2><p class="muted">This page is part of the training exercise.</p><label>Email</label><input class="form-control" value="${esc(user.email)}" readonly><label>Password</label><input id="fakePassword" class="form-control" type="password" placeholder="Never enter a real password" autocomplete="off"><button class="btn btn-primary full-width" id="submitFake">Continue</button><p class="sim-disclaimer">Your password is not stored or transmitted.</p></div></div></div><aside class="card red-flags-card"><div class="eyebrow">CAN YOU SPOT IT?</div><h3>Pause before signing in</h3><ul class="flag-list"><li>Check the address carefully.</li><li>Look for an unexpected sign-in request.</li><li>Do not let urgency override verification.</li></ul><button class="btn btn-danger full-width" id="reportLanding">Report this page</button></aside></div>`;document.getElementById('submitFake').onclick=()=>{add('credential_attempt');finish(false,true)};document.getElementById('reportLanding').onclick=()=>finish(true,false);}
+function renderSms(){add('sms_opened');document.getElementById('pageTitle').textContent='Messages simulation';document.getElementById('pageSubtitle').textContent='Mobile SMS simulation · pause before replying to an unexpected request.';const contact=scenario.sender||'Unknown contact';const phone=scenario.phone||'+966 50 000 0000';stage.innerHTML=`<div class="simulation-workspace"><div class="card phone-simulation-card"><div class="phone-shell"><div class="phone-notch"></div><div class="phone-status"><span>9:42</span><span>● ◒ ▰</span></div><div class="messages-header"><span>‹</span><strong>Messages</strong><span>＋</span></div><div class="contact-header"><div class="contact-avatar">${esc(contact.charAt(0).toUpperCase())}</div><div><strong>${esc(contact)}</strong><small>${esc(phone)}</small></div></div><div class="message-thread"><div class="message-bubble incoming">${esc(scenario.body)}</div><div class="message-time">Today 9:42 AM</div></div><div class="message-compose"><span>SMS</span><button id="replyBtn" aria-label="Reply">↑</button></div></div></div><aside class="card red-flags-card"><div class="eyebrow">SOCIAL ENGINEERING</div><h3>Verify the person, not just the message</h3><ul class="flag-list"><li>Is this actually your contact?</li><li>Is the request unusual or urgent?</li><li>Never share a verification code.</li></ul><div class="simulation-choice"><button class="btn btn-danger full-width" id="reportSms">⚑ Report message</button><button class="btn btn-secondary full-width" id="replySms">Reply / interact</button></div><p class="sim-disclaimer">This is a simulated message. No SMS is sent and no private code is collected.</p></aside></div>`;document.getElementById('reportSms').onclick=()=>finish(true,false);document.getElementById('replySms').onclick=()=>{add('reply_attempted');finish(false,false)};document.getElementById('replyBtn').onclick=()=>{add('reply_attempted');finish(false,false)};}
+if(channel==='sms')renderSms();else if(channel==='email')renderEmail();else stage.innerHTML='<div class="card empty"><h2>Phone simulation coming soon</h2><p>The demo currently provides Email and SMS simulations. Phone will be added as a safe in-browser call simulation later.</p></div>';
+})();
+</script>
+</body></html>
